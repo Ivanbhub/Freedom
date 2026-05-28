@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day Counter</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400&family=Lora:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f3ee;
+    --text: #1a1916;
+    --muted: #9a9690;
+    --faint: #c8c4bc;
+    --border: #d8d4cc;
+    --btn-hover: #eae6df;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141412;
+      --text: #e8e4dc;
+      --muted: #5a5650;
+      --faint: #2e2c28;
+      --border: #2e2c28;
+      --btn-hover: #1e1c18;
+    }
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+    gap: 0;
+  }
+
+  #count {
+    font-weight: 300;
+    font-size: clamp(96px, 26vw, 210px);
+    line-height: 0.88;
+    letter-spacing: -6px;
+    color: var(--text);
+    animation: fadeUp 0.5s ease both;
+  }
+
+  #unit {
+    font-size: 11px;
+    letter-spacing: 0.28em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-top: 16px;
+    animation: fadeUp 0.5s 0.08s ease both;
+  }
+
+  #reset {
+    margin-top: 40px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 9px 22px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background 0.18s, color 0.18s, border-color 0.18s;
+    animation: fadeUp 0.5s 0.16s ease both;
+  }
+  #reset:hover { background: var(--btn-hover); color: var(--text); border-color: var(--muted); }
+  #reset:active { transform: scale(0.97); }
+
+  #verse-wrap {
+    margin-top: 44px;
+    max-width: 300px;
+    text-align: center;
+    animation: fadeUp 0.5s 0.22s ease both;
+    border-top: 1px solid var(--faint);
+    padding-top: 28px;
+  }
+
+  #verse-text {
+    font-family: 'Lora', serif;
+    font-style: italic;
+    font-size: 13px;
+    line-height: 1.75;
+    color: var(--muted);
+  }
+
+  #verse-ref {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--faint);
+    text-transform: uppercase;
+    margin-top: 12px;
+  }
+
+  #toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%) translateY(16px);
+    background: var(--text);
+    color: var(--bg);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 9px 18px;
+    border-radius: 2px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<div id="count">0</div>
+<div id="unit">days</div>
+<button id="reset" onclick="resetCounter()">↺ reset</button>
+
+<div id="verse-wrap">
+  <div id="verse-text"></div>
+  <div id="verse-ref"></div>
+</div>
+
+<div id="toast">reset to today</div>
+
+<script>
+  const FALLBACK_TEXT = "Flee from sexual immorality. Every other sin a person commits is outside the body, but the sexually immoral person sins against his own body. Or do you not know that your body is a temple of the Holy Spirit within you, whom you have from God? You are not your own, for you were bought with a price. So glorify God in your body.";
+  const FALLBACK_REF = "1 Corinthians 6:18–20";
+
+  function today() {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString().slice(0, 10);
+  }
+
+  function daysDiff(startStr) {
+    const ms = new Date(today()) - new Date(startStr);
+    return Math.max(0, Math.round(ms / 86400000));
+  }
+
+  function getStart() {
+    return localStorage.getItem('day_countup_start');
+  }
+
+  function setStart(d) {
+    localStorage.setItem('day_countup_start', d);
+  }
+
+  function render() {
+    let start = getStart();
+    if (!start) { start = today(); setStart(start); }
+    const diff = daysDiff(start);
+    document.getElementById('count').textContent = diff;
+  }
+
+  function resetCounter() {
+    setStart(today());
+    render();
+    const toast = document.getElementById('toast');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1800);
+  }
+
+  async function loadVerse() {
+    const vt = document.getElementById('verse-text');
+    const vr = document.getElementById('verse-ref');
+    try {
+      const res = await fetch('https://bible-api.com/1+corinthians+6:18-20?translation=esv', { signal: AbortSignal.timeout(4000) });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      vt.textContent = data.text.trim();
+      vr.textContent = data.reference;
+    } catch {
+      vt.textContent = FALLBACK_TEXT;
+      vr.textContent = FALLBACK_REF;
+    }
+  }
+
+  render();
+  loadVerse();
+</script>
+</body>
+</html>
